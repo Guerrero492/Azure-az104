@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "storageAccountName": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 24,
+      "metadata": {
+        "description": "Nombre único global para la cuenta de almacenamiento."
+      }
+    },
+    "environmentType": {
+      "type": "string",
+      "defaultValue": "Standard_LRS",
+      "allowedValues": [
+        "Standard_LRS",
+        "Standard_GRS"
+      ],
+      "metadata": {
+        "description": "Limita las opciones de SKU para evitar sobrecostes en despliegues no autorizados."
+      }
+    },
+    "allowPublicAccess": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Control de seguridad: Define si se permite el acceso público a los blobs. Por defecto es falso (bloqueado)."
+      }
+    }
+  },
+  "functions": [],
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-01-01",
+      "name": "[parameters('storageAccountName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "StorageV2",
+      "sku": {
+        "name": "[parameters('environmentType')]"
+      },
+      "properties": {
+        "supportsHttpsTrafficOnly": true,
+        "allowBlobPublicAccess": "[parameters('allowPublicAccess')]"
+      }
+    }
+  ],
+  "outputs": {
+    "securityStatus": {
+      "type": "string",
+      "value": "Despliegue finalizado. El tráfico HTTPS está forzado."
+    },
+    "storageEndpoint": {
+      "type": "object",
+      "value": "[reference(parameters('storageAccountName')).primaryEndpoints]"
+    }
+  }
+}
