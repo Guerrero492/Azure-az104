@@ -8,7 +8,7 @@ El primer paso en cualquier revisión de seguridad es verificar los permisos efe
 * **Ruta de acceso:** `Azure Portal > Perfil > Mis permisos`
 * **Validación:** Se verifica el nivel de acceso directo de la cuenta frente a la suscripción para evitar elevaciones de privilegios no documentadas.
 
-> 🖼️ ![Auditoría de mis permisos](Images/01-my-permissions-sanitized.png)
+>  ![Auditoría de mis permisos](Images/01-my-permissions-sanitized.png)
 
 ## 2. Análisis de Asignaciones a Nivel de Recurso (Scope Analysis)
 La evaluación de la herencia de permisos es crítica. Un usuario puede tener acceso a un recurso crítico no por una asignación directa, sino por una herencia desde el Grupo de Administración o Suscripción.
@@ -18,7 +18,7 @@ La evaluación de la herencia de permisos es crítica. Un usuario puede tener ac
   * Identificar cuentas huérfanas o no autorizadas.
   * Diferenciar en la columna **Ámbito (Scope)** si el acceso es `(Heredado)` o asignado directamente a `Este recurso`.
 
-> 🖼️ ![Análisis de ámbito y herencia](Images/02-role-assignments-sanitized.png)
+>  ![Análisis de ámbito y herencia](Images/02-role-assignments-sanitized.png)
 
 ## 3. Revisión de Definición de Roles (Actions vs NotActions)
 Azure RBAC opera bajo un modelo de concesión donde los permisos efectivos se calculan restando las operaciones denegadas (`NotActions`) de las permitidas (`Actions`).
@@ -26,7 +26,7 @@ Azure RBAC opera bajo un modelo de concesión donde los permisos efectivos se ca
 * **Ruta de acceso:** `IAM > Roles > [Seleccionar Rol]`
 * **Caso de estudio (Rol Colaborador):** Se audita la definición JSON del rol para verificar que, aunque posee comodines `*` en *Actions* (control total del plano de control), tiene restricciones explícitas en *NotActions* que impiden la modificación de asignaciones de roles, aislando así la capacidad de escalar privilegios.
 
-> 🖼️ ![Definición del rol Colaborador](Images/03-contributor-role.png)
+>  ![Definición del rol Colaborador](Images/03-contributor-role.png)
 
 ---
 *Documento generado como parte de los procedimientos de seguridad y gobierno de infraestructura Cloud.*
