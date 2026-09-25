@@ -29,19 +29,6 @@ Para verificar visualmente la segmentación y asegurar que el tráfico fluye seg
 
 ![Topología de Red Zero Trust - Network Watcher](./Images/network-watcher-topology.png)
 
-#### 6. Guía de Reproducción (Manual de Despliegue)
-Para replicar este entorno desde cero, se deben seguir los siguientes pasos operativos:
-
-1.  **Despliegue Base:** Crear el grupo de recursos `rg-sec-portfolio` en `France Central`.
-2.  **Redes Virtuales:**
-    *   Crear `vnet-hub` (10.0.0.0/16) con las subredes `AzureFirewallSubnet` (10.0.1.0/26), `GatewaySubnet` (10.0.2.0/27) y `snet-appgw` (10.0.3.0/24).
-    *   Crear `vnet-spoke-web` (10.1.0.0/16) con la subred `snet-web` (10.1.0.0/24).
-    *   Crear `vnet-spoke-data` (10.2.0.0/16) con la subred `snet-data` (10.2.0.0/24).
-3.  **VNet Peering:** En `vnet-hub`, agregar dos emparejamientos independientes. Uno apuntando a `vnet-spoke-web` y otro a `vnet-spoke-data`, permitiendo el tráfico reenviado en ambos enlaces.
-4.  **UDR:** Crear la Route Table `rt-web-to-data`. Añadir la ruta `Force-To-Firewall` (Destino: 10.2.0.0/16, Próximo salto: Virtual Appliance en 10.0.1.4). Asociar la tabla a la subred `snet-web`.
-5.  **Application Gateway:** Crear un recurso SKU WAF V2 en la red `vnet-hub` (subred `snet-appgw`). Generar una nueva directiva WAF, asignar una nueva IP pública, apuntar el backend pool a la IP ficticia `10.1.0.4` y configurar una regla de enrutamiento HTTP en el puerto 80.
-6.  **Auditoría:** Habilitar Network Watcher en `France Central`, acceder a la herramienta Topología, filtrar por la `vnet-hub` y navegar por el Geo Map hasta el nivel de recursos para extraer la evidencia visual.
-
 --------------------------------------------------------------------------------
 
 *Laboratorio completado y recursos eliminados (FinOps). La arquitectura base cuenta ahora con segmentación estricta y protección de Capa 7.*
