@@ -1,36 +1,34 @@
-### 🛡️ Custom Challenge: Arquitectura Integral de Almacenamiento Seguro (SecOps, FinOps & HA)
-**Objetivo:** Diseñar e implementar una infraestructura de almacenamiento unificada para una corporación aplicando controles Zero Trust, garantizando la inmutabilidad de la evidencia forense (WORM) y automatizando la optimización de costes.
+### 🛡️ Custom Challenge: Arquitectura Zero Trust (Hub-and-Spoke y WAF)
+**Objetivo:** Diseñar e implementar una topología de red corporativa segura en Azure aplicando los principios de *Zero Trust* (Confianza Cero), evitando la transitividad directa entre capas y forzando la inspección del tráfico mediante *Service Chaining*.
 
-#### 1. Resiliencia y Alta Disponibilidad (Core Architecture)
-Para asegurar la continuidad del negocio frente a desastres regionales o ataques maliciosos, la cuenta base se aprovisionó con las máximas garantías de replicación y protección de datos:
-*   **Redundancia (RA-GRS):** Almacenamiento con redundancia geográfica con acceso de lectura, garantizando un failover transparente y lectura ininterrumpida desde la región secundaria.
-*   **Protección Anti-Ransomware:** Se habilitó la eliminación temporal (Soft Delete) con retención de 14 días y el control de versiones de blobs, asegurando la recuperación inmediata frente a sobrescrituras.
+#### 1. Segmentación de Redes y Topología
+Se han desplegado tres redes virtuales aisladas en la región `France Central` para delimitar físicamente el perímetro de cada capa de la aplicación:
+*   **vnet-hub (10.0.0.0/16):** Contiene las subredes de enrutamiento y seguridad (`AzureFirewallSubnet`, `GatewaySubnet`, `snet-appgw`).
+*   **vnet-spoke-web (10.1.0.0/16):** Aísla la capa de presentación (`snet-web`).
+*   **vnet-spoke-data (10.2.0.0/16):** Aísla la capa de bases de datos (`snet-data`).
 
-#### 2. Segmentación y Seguridad Zero Trust (Identidad y Red)
-Se erradicaron los vectores de ataque tradicionales mediante la desactivación de métodos de autenticación heredados y el aislamiento perimetral:
-*   **Identidad Exclusiva:** Se deshabilitó el acceso mediante claves de cuenta (Shared Key Access = Disabled), forzando el uso exclusivo de Microsoft Entra ID (RBAC).
+#### 2. Conectividad Controlada (VNet Peering Restrictivo)
+Para aislar los entornos y romper la transitividad por defecto, se han configurado conexiones en estrella:
+*   **hub-to-web / web-to-hub:** Conexión bidireccional permitida.
+*   **hub-to-data / data-to-hub:** Conexión bidireccional permitida.
+*   *Nota de seguridad:* No se ha establecido ningún emparejamiento directo entre la red Web y la red Data, previniendo el movimiento lateral.
 
-![Configuración de Seguridad Zero Trust](./Images/storage-identity-hardening.png)
+#### 3. Secuestro del Tráfico y Service Chaining (UDR)
+Se implementó una **Tabla de Rutas (Route Table)** para forzar la inspección del tráfico interno (Este-Oeste).
+*   **Ruta Definida por el Usuario (UDR):** Se creó la ruta `Force-To-Firewall` para interceptar el tráfico con destino a la base de datos (`10.2.0.0/16`).
+*   **Next Hop (Próximo salto):** Configurado como `Virtual appliance` apuntando a la IP `10.0.1.4` (simulando un NVA en el Hub).
+*   **Asociación:** La tabla de rutas se vinculó a la subred `snet-web`.
 
-*   **Conectividad Controlada:** El acceso público fue denegado. Se configuraron *Service Endpoints* (`Microsoft.Storage`) para que la cuenta solo acepte tráfico proveniente de la red virtual autorizada (`vnet-management`).
-*   *Nota de seguridad:* Ni siquiera los administradores globales pueden acceder a los datos desde fuera de la red de gestión (Error 403).
+#### 4. Perímetro de Aplicación (Application Gateway WAF v2)
+Para proteger el tráfico externo (Norte-Sur), se desplegó un proxy inverso de Capa 7.
+*   **Configuración:** Desplegado en la subred dedicada `snet-appgw` con una IP Pública (`pip-appgw`).
+*   **Seguridad:** Directiva WAF `waf-policy-sec` en modo Detección para inspeccionar vulnerabilidades web (HTTP/80) antes de reenviar el tráfico al pool de servidores web (`10.1.0.4`).
 
-![Aislamiento de Red](./Images/storage-network-isolation.png)
+#### 5. Auditoría y Trazabilidad (Network Watcher)
+Para verificar visualmente la segmentación y asegurar que el tráfico fluye según el diseño Hub-and-Spoke no transitivo, se extrajo la topología lógica de la infraestructura. Como demuestra la siguiente evidencia, las redes periféricas están completamente aisladas entre sí y centralizadas a través del Hub.
 
-#### 3. Bóveda Forense Inmutable (Compliance & WORM)
-Los registros de auditoría y telemetría de seguridad requieren protección absoluta contra la manipulación:
-*   **Bloqueo Legal (WORM):** Se implementó una directiva de retención basada en tiempo en el contenedor de auditoría (`soc-logs`), garantizando que la evidencia forense no pueda ser alterada ni eliminada (Write-Once, Read-Many) por ningún actor.
-
-#### 4. Topología de Archivos Híbrida (Azure Files)
-Se habilitó un espacio de trabajo centralizado para los equipos operativos sin la carga administrativa de mantener servidores IaaS:
-*   **Recurso Compartido Seguro:** Despliegue de un File Share (`sec-tools`) optimizado para transacciones, accesible mediante el protocolo SMB 3.0 con cifrado en tránsito forzado.
-
-#### 5. Optimización Financiera Automatizada (FinOps)
-Para evitar el sobrecoste derivado de la retención a largo plazo de los registros forenses, se aplicó la automatización nativa del ciclo de vida:
-*   **Tiering Automatizado:** Regla *Lifecycle Management* que evalúa los blobs del contenedor `soc-logs`. Si no han sido modificados en 30 días, se degradan al nivel Esporádico (Cool); a los 90 días, se transicionan de forma automática al nivel Archivo (Archive).
-
-![Ciclo de Vida FinOps](./Images/storage-lifecycle-finops.png)
+![Topología de Red Zero Trust - Network Watcher](./Images/network-watcher-topology.png)
 
 --------------------------------------------------------------------------------
 
-*Laboratorio completado y recursos eliminados (FinOps). La arquitectura base cuenta ahora con segmentación estricta, protección contra ransomware y optimización de costes a largo plazo.*
+*Laboratorio completado y recursos eliminados (FinOps). La arquitectura base cuenta ahora con segmentación estricta y protección de Capa 7.*
