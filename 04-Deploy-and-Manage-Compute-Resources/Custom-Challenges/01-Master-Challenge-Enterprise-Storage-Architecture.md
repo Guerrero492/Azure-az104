@@ -1,36 +1,27 @@
-### 🛡️ Custom Challenge: Arquitectura Integral de Almacenamiento Seguro (SecOps, FinOps & HA)
-**Objetivo:** Diseñar e implementar una infraestructura de almacenamiento unificada para una corporación aplicando controles Zero Trust, garantizando la inmutabilidad de la evidencia forense (WORM) y automatizando la optimización de costes.
+### 🛡️ Custom Challenge: Arquitectura Híbrida Segura y Escalable (PaaS, CaaS & IaaS)
+**Objetivo:** Diseñar e implementar una arquitectura de tres capas integrando servicios gestionados y de infraestructura, aplicando controles Zero Trust en la red perimetral y automatizando la optimización de costes (FinOps) mediante el autoescalado.
 
-#### 1. Resiliencia y Alta Disponibilidad (Core Architecture)
-Para asegurar la continuidad del negocio frente a desastres regionales o ataques maliciosos, la cuenta base se aprovisionó con las máximas garantías de replicación y protección de datos:
-*   **Redundancia (RA-GRS):** Almacenamiento con redundancia geográfica con acceso de lectura, garantizando un failover transparente y lectura ininterrumpida desde la región secundaria.
-*   **Protección Anti-Ransomware:** Se habilitó la eliminación temporal (Soft Delete) con retención de 14 días y el control de versiones de blobs, asegurando la recuperación inmediata frente a sobrescrituras.
+#### 1. Frontend Seguro y Resiliente (PaaS)
+Para aislar la capa de presentación y asegurar las comunicaciones desde el usuario final, se desplegó un servicio web bastionado (`frontend-corp-jmguerrero`)[cite: 12]:
+-   **Seguridad Perimetral (TLS/HTTPS):** Se activó la directiva `HTTPS solamente` forzando la `Versión mínima de TLS entrante` a 1.2 para rechazar cualquier petición en texto plano, mitigando los riesgos de interceptación[cite: 12].
+-   **Disponibilidad Continua:** Se habilitó la opción `Siempre activado` para evitar la suspensión del proceso trabajador por inactividad[cite: 12].
 
-#### 2. Segmentación y Seguridad Zero Trust (Identidad y Red)
-Se erradicaron los vectores de ataque tradicionales mediante la desactivación de métodos de autenticación heredados y el aislamiento perimetral:
-*   **Identidad Exclusiva:** Se deshabilitó el acceso mediante claves de cuenta (Shared Key Access = Disabled), forzando el uso exclusivo de Microsoft Entra ID (RBAC).
+![Configuración HTTPS Bastionado](./Images/frontend-swap-https.png)
 
-![Configuración de Seguridad Zero Trust](./Images/storage-identity-hardening.png)
+#### 2. Segmentación y Seguridad Zero Trust (CaaS & Red)
+La lógica de negocio principal (`backend-api-corp`) se protegió erradicando su exposición a la red pública, implementando un microservicio en un entorno de red aislado[cite: 11]:
+-   **Inyección en VNet:** Se aprovisionó una instancia de contenedor delegando su interfaz de red directamente a una subred corporativa en la región `France Central`[cite: 11].
+-   **Aislamiento Estricto:** Se le asignó exclusivamente una dirección IP privada (`10.0.0.4`), asegurando que el FQDN público quedara deshabilitado (`---`)[cite: 11]. El servicio es completamente invisible desde Internet y solo accesible mediante enrutamiento interno.
 
-*   **Conectividad Controlada:** El acceso público fue denegado. Se configuraron *Service Endpoints* (`Microsoft.Storage`) para que la cuenta solo acepte tráfico proveniente de la red virtual autorizada (`vnet-management`).
-*   *Nota de seguridad:* Ni siquiera los administradores globales pueden acceder a los datos desde fuera de la red de gestión (Error 403).
+![Backend Aislado Zero Trust](./Images/backend-aci-private.png)
 
-![Aislamiento de Red](./Images/storage-network-isolation.png)
+#### 3. Procesamiento IaaS Elástico (FinOps & HA)
+Para la capa de procesamiento en segundo plano, se diseñó un clúster IaaS optimizado financieramente:
+-   **Autoescalado Paramétrico:** Se configuraron políticas de escalado dinámico en un Virtual Machine Scale Set (VMSS) basadas en CPU (Scale-Out al 75%, Scale-In al 30%) para adaptar el consumo de instancias al uso real.
+-   **Troubleshooting (Limitación de Cuota):** Durante el despliegue final se documentó un bloqueo de políticas (`disallowed by Azure`) por restricción de cuota de vCPU en la suscripción "Azure for Students". La resolución en entornos de producción requeriría la apertura de un ticket de soporte técnico (Request Quota Increase).
 
-#### 3. Bóveda Forense Inmutable (Compliance & WORM)
-Los registros de auditoría y telemetría de seguridad requieren protección absoluta contra la manipulación:
-*   **Bloqueo Legal (WORM):** Se implementó una directiva de retención basada en tiempo en el contenedor de auditoría (`soc-logs`), garantizando que la evidencia forense no pueda ser alterada ni eliminada (Write-Once, Read-Many) por ningún actor.
-
-#### 4. Topología de Archivos Híbrida (Azure Files)
-Se habilitó un espacio de trabajo centralizado para los equipos operativos sin la carga administrativa de mantener servidores IaaS:
-*   **Recurso Compartido Seguro:** Despliegue de un File Share (`sec-tools`) optimizado para transacciones, accesible mediante el protocolo SMB 3.0 con cifrado en tránsito forzado.
-
-#### 5. Optimización Financiera Automatizada (FinOps)
-Para evitar el sobrecoste derivado de la retención a largo plazo de los registros forenses, se aplicó la automatización nativa del ciclo de vida:
-*   **Tiering Automatizado:** Regla *Lifecycle Management* que evalúa los blobs del contenedor `soc-logs`. Si no han sido modificados en 30 días, se degradan al nivel Esporádico (Cool); a los 90 días, se transicionan de forma automática al nivel Archivo (Archive).
-
-![Ciclo de Vida FinOps](./Images/storage-lifecycle-finops.png)
+![Reglas de Autoescalado VMSS](./Images/iaas-vmss-autoscale.png)
 
 --------------------------------------------------------------------------------
 
-*Laboratorio completado y recursos eliminados (FinOps). La arquitectura base cuenta ahora con segmentación estricta, protección contra ransomware y optimización de costes a largo plazo.*
+*Laboratorio completado. La arquitectura base cuenta ahora con cifrado forzado en el frontend, segmentación de red estricta en el backend y diseño elástico preparado para optimización de costes.*
