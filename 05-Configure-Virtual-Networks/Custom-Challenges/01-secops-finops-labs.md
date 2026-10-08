@@ -1,39 +1,27 @@
-# AZ-104 Master Challenge: Arquitectura Híbrida Segura y Escalable
+### 🛡️ Custom Challenge: Arquitectura Híbrida Segura y Escalable (PaaS, CaaS & IaaS)
+**Objetivo:** Diseñar e implementar una arquitectura de tres capas integrando servicios gestionados y de infraestructura, aplicando controles Zero Trust en la red perimetral y automatizando la optimización de costes (FinOps) mediante el autoescalado.
 
-Este repositorio documenta el diseño y despliegue de una arquitectura de tres capas en Microsoft Azure, diseñada desde cero aplicando principios avanzados de **SecOps (Zero Trust)**, **FinOps (Optimización de costes)** y **Alta Disponibilidad**. El entorno integra servicios PaaS, CaaS e IaaS para construir una solución corporativa robusta y resiliente.
+#### 1. Frontend Seguro y Resiliente (PaaS)
+Para aislar la capa de presentación y asegurar las comunicaciones desde el usuario final, se desplegó un servicio web bastionado (`frontend-corp-jmguerrero`)[cite: 12]:
+-   **Seguridad Perimetral (TLS/HTTPS):** Se activó la directiva `HTTPS solamente` forzando la `Versión mínima de TLS entrante` a 1.2 para rechazar cualquier petición en texto plano, mitigando los riesgos de interceptación[cite: 12].
+-   **Disponibilidad Continua:** Se habilitó la opción `Siempre activado` para evitar la suspensión del proceso trabajador por inactividad[cite: 12].
 
-| Capa | Servicio Azure | Foco Principal | Estrategia Implementada |
-| :--- | :--- | :--- | :--- |
-| **Frontend** | App Service | Seguridad Perimetral | TLS/HTTPS Only (Cifrado forzado) |
-| **Backend** | Container Instances | Zero Trust | VNet Privada delegada, Sin IP Pública |
-| **Computación** | VMSS | FinOps & Escalabilidad | Autoescalado paramétrico basado en CPU |
+![Configuración HTTPS Bastionado](./Images/frontend-swap-https.png)
 
-## Fase 1: Frontend PaaS Seguro (Azure App Service)
-El punto de entrada de la aplicación se aloja en un entorno de plataforma como servicio (PaaS) bastionado para garantizar comunicaciones cifradas de extremo a extremo, bloqueando tráfico vulnerable por diseño.
+#### 2. Segmentación y Seguridad Zero Trust (CaaS & Red)
+La lógica de negocio principal (`backend-api-corp`) se protegió erradicando su exposición a la red pública, implementando un microservicio en un entorno de red aislado[cite: 11]:
+-   **Inyección en VNet:** Se aprovisionó una instancia de contenedor delegando su interfaz de red directamente a una subred corporativa en la región `France Central`[cite: 11].
+-   **Aislamiento Estricto:** Se le asignó exclusivamente una dirección IP privada (`10.0.0.4`), asegurando que el FQDN público quedara deshabilitado (`---`)[cite: 11]. El servicio es completamente invisible desde Internet y solo accesible mediante enrutamiento interno.
 
-*   **Implementación:** Aprovisionamiento de aplicación web en plan Standard (S1) preparado para intercambios de ranuras (*deployment slots*) sin tiempo de inactividad.
-*   **Bastionado SecOps:** Activación estricta de la directiva `HTTPS Only` para rechazar peticiones HTTP no seguras, mitigando los riesgos de interceptación de credenciales o de sesión.
-*   **Evidencia:** `![Frontend HTTPS Bastionado](frontend-swap-https.png)`
+![Backend Aislado Zero Trust](./Images/backend-aci-private.png)
 
-## Fase 2: Backend CaaS Aislado (Azure Container Instances)
-Para proteger la lógica de negocio y las futuras conexiones a bases de datos, el microservicio de backend se despliega aplicando un modelo de confianza cero (Zero Trust), eliminando por completo su exposición a la red pública.
+#### 3. Procesamiento IaaS Elástico (FinOps & HA)
+Para la capa de procesamiento en segundo plano, se diseñó un clúster IaaS optimizado financieramente:
+-   **Autoescalado Paramétrico:** Se configuraron políticas de escalado dinámico en un Virtual Machine Scale Set (VMSS) basadas en CPU (Scale-Out al 75%, Scale-In al 30%) para adaptar el consumo de instancias al uso real.
+-   **Troubleshooting (Limitación de Cuota):** Durante el despliegue final se documentó un bloqueo de políticas (`disallowed by Azure`) por restricción de cuota de vCPU en la suscripción "Azure for Students". La resolución en entornos de producción requeriría la apertura de un ticket de soporte técnico (Request Quota Increase).
 
-*   **Implementación:** Despliegue de un contenedor ágil sobre infraestructura sin servidor (CaaS).
-*   **Aislamiento de Red:** Inyección directa del contenedor mediante delegación de subred (`Microsoft.ContainerInstance/containerGroups`) dentro de una Virtual Network (VNet) corporativa dedicada.
-*   **SecOps:** Asignación exclusiva de direccionamiento IP privado (rango `10.0.x.x`) sin un FQDN expuesto, garantizando que el servicio sea indetectable e inaccesible desde el exterior del perímetro de Azure.
-*   **Evidencia:** `![Backend Aislado Zero Trust](backend-aci-private.png)`
+![Reglas de Autoescalado VMSS](./Images/iaas-vmss-autoscale.png)
 
-## Fase 3: Procesamiento IaaS Elástico (Virtual Machine Scale Sets)
-Las cargas de trabajo asíncronas de mayor exigencia de cómputo se absorben mediante un clúster IaaS orquestado de manera elástica, protegiendo el presupuesto operativo al adaptar los recursos a la demanda real.
+--------------------------------------------------------------------------------
 
-*   **Implementación:** Configuración de un clúster de servidores Linux (Ubuntu 22.04 LTS) en modo de orquestación flexible, balanceado internamente (Internal Load Balancer) para no comprometer el aislamiento perimetral.
-*   **Políticas FinOps (Autoescalado):**
-    *   *Scale-Out (Aumento):* Despliegue automático de 1 instancia adicional si el consumo medio de CPU supera el 75% durante una ventana de 5 minutos.
-    *   *Scale-In (Reducción):* Destrucción automática de 1 instancia si la CPU desciende por debajo del 30% durante 5 minutos, garantizando la liberación de recursos ociosos.
-*   **Evidencia:** `![Reglas de Autoescalado VMSS](iaas-vmss-autoscale.png)`
-
-## Resolución de Incidentes: Límites de Capacidad y Políticas IaaS
-Durante el aprovisionamiento de la capa IaaS, la API de Azure Resources (ARM) devolvió un bloqueo de validación (`disallowed by Azure`) asociado a restricciones de política de ubicación.
-
-*   **Diagnóstico:** Restricción dinámica de cuota de vCPU aplicada por Microsoft en centros de datos con alta densidad de demanda (común en suscripciones controladas o de desarrollo como *Azure for Students*).
-*   **Solución Corporativa:** En un escenario de producción, este incidente de despliegue se resuelve escalando un ticket de soporte oficial (Request Quota Increase) para ampliar el límite de núcleos en la región `West Europe` o `France Central`, o bien distribuyendo las instancias del Scale Set a través de múltiples Zonas de Disponibilidad en regiones emparejadas (*paired regions*) pre-aprobadas para la suscripción.
+*Laboratorio completado. La arquitectura base cuenta ahora con cifrado forzado en el frontend, segmentación de red estricta en el backend y diseño elástico preparado para optimización de costes.*
